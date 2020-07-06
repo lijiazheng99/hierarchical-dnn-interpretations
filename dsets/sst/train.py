@@ -78,7 +78,7 @@ if args.word_vectors:
 answers.build_vocab(train)
 
 train_iter, dev_iter, test_iter = data.BucketIterator.splits(
-    (train, dev, test), batch_size=args.batch_size, device=args.gpu)
+    (train, dev, test), batch_size=args.batch_size, device=torch.device('cuda'))
 
 config = args
 config.n_embed = len(inputs.vocab)
@@ -93,7 +93,7 @@ if config.birnn:
     config.n_cells *= 2
 
 if args.resume_snapshot:
-    model = torch.load(args.resume_snapshot, map_location=lambda storage, location: storage.cuda(args.gpu))
+    model = torch.load(args.resume_snapshot, map_location=lambda storage, location: storage.cuda(torch.device('cuda')))
 else:
     model = LSTMSentiment(config)
     if args.word_vectors:
@@ -149,7 +149,7 @@ for epoch in range(args.epochs):
             snapshot_prefix = os.path.join(args.save_path, 'snapshot')
             if args.bad:
                 snapshot_prefix += '_bad'
-            snapshot_path = snapshot_prefix + '_acc_{:.4f}_loss_{:.6f}_iter_{}_model.pt'.format(train_acc, loss.data[0],
+            snapshot_path = snapshot_prefix + '_acc_{:.4f}_loss_{:.6f}_iter_{}_model.pt'.format(train_acc, loss.item(),
                                                                                                 iterations)
             torch.save(model, snapshot_path)
             for f in glob.glob(snapshot_prefix + '*'):
@@ -175,7 +175,7 @@ for epoch in range(args.epochs):
 
             print(dev_log_template.format(time.time() - start,
                                           epoch, iterations, 1 + batch_idx, len(train_iter),
-                                          100. * (1 + batch_idx) / len(train_iter), loss.data[0], dev_loss.data[0],
+                                          100. * (1 + batch_idx) / len(train_iter), loss.item(), dev_loss.item(),
                                           train_acc, dev_acc))
 
             # update best valiation set accuracy
@@ -186,7 +186,7 @@ for epoch in range(args.epochs):
                 if args.bad:
                     snapshot_prefix += '_bad'
                 snapshot_path = snapshot_prefix + '_devacc_{}_devloss_{}__iter_{}_model.pt'.format(dev_acc,
-                                                                                                   dev_loss.data[0],
+                                                                                                   dev_loss.item(),
                                                                                                    iterations)
 
                 # save model, delete previous 'best_snapshot' files
@@ -206,5 +206,5 @@ for epoch in range(args.epochs):
             # print progress message
             print(log_template.format(time.time() - start,
                                       epoch, iterations, 1 + batch_idx, len(train_iter),
-                                      100. * (1 + batch_idx) / len(train_iter), loss.data[0], ' ' * 8,
+                                      100. * (1 + batch_idx) / len(train_iter), loss.item(), ' ' * 8,
                                       n_correct / n_total * 100, ' ' * 12))

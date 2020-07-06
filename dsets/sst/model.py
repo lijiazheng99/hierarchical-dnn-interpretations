@@ -17,8 +17,8 @@ class LSTMSentiment(nn.Module):
         self.hidden_to_label = nn.Linear(self.hidden_dim, self.num_labels)
 
     def forward(self, batch):
-        self.hidden = (torch.zeros(1, batch.text.size()[1], self.hidden_dim).to(self.device),
-                       torch.zeros(1, batch.text.size()[1], self.hidden_dim).to(self.device))
+        # self.hidden = (torch.zeros(1, batch.text.size()[1], self.hidden_dim).to(self.device),
+        #                torch.zeros(1, batch.text.size()[1], self.hidden_dim).to(self.device))
         # if self.use_gpu:
         #     self.hidden = (Variable(torch.zeros(1, batch.text.size()[1], self.hidden_dim).cuda()),
         #                    Variable(torch.zeros(1, batch.text.size()[1], self.hidden_dim).cuda()))
@@ -26,7 +26,14 @@ class LSTMSentiment(nn.Module):
         #     self.hidden = (Variable(torch.zeros(1, batch.text.size()[1], self.hidden_dim)),
         #                    Variable(torch.zeros(1, batch.text.size()[1], self.hidden_dim)))
 
-        vecs = self.embed(batch.text)
+        if self.use_gpu:
+            self.hidden = (torch.zeros(1, batch.text.size()[1], self.hidden_dim).cuda(),
+                           torch.zeros(1, batch.text.size()[1], self.hidden_dim).cuda())
+        else:
+            self.hidden = (torch.zeros(1, batch.text.size()[1], self.hidden_dim),
+                           torch.zeros(1, batch.text.size()[1], self.hidden_dim))
+
+        vecs = self.embed(batch.text.cuda())
         lstm_out, self.hidden = self.lstm(vecs, self.hidden)
         logits = self.hidden_to_label(lstm_out[-1])
         # log_probs = self.log_softmax(logits)
