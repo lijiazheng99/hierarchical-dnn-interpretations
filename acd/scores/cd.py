@@ -110,8 +110,8 @@ def cd_text(batch, model, start, stop, return_irrel_scores=False):
     weights = model.lstm.state_dict()
 
     # Index one = word vector (i) or hidden state (h), index two = gate
-    W_ii, W_if, W_ig, W_io = np.split(weights['weight_ih_l0'], 4, 0)
-    W_hi, W_hf, W_hg, W_ho = np.split(weights['weight_hh_l0'], 4, 0)
+    W_ii, W_if, W_ig, W_io = np.split(weights['weight_ih_l0'].cpu().numpy(), 4, 0)
+    W_hi, W_hf, W_hg, W_ho = np.split(weights['weight_hh_l0'].cpu().numpy(), 4, 0)
     b_i, b_f, b_g, b_o = np.split(weights['bias_ih_l0'].cpu().numpy() + weights['bias_hh_l0'].cpu().numpy(), 4)
     word_vecs = model.embed(batch.text)[:, 0].data
     T = word_vecs.size(0)
@@ -137,15 +137,15 @@ def cd_text(batch, model, start, stop, return_irrel_scores=False):
         irrel_o = np.dot(W_ho, prev_irrel_h)
 
         if i >= start and i <= stop:
-            rel_i = rel_i + np.dot(W_ii, word_vecs[i])
-            rel_g = rel_g + np.dot(W_ig, word_vecs[i])
-            rel_f = rel_f + np.dot(W_if, word_vecs[i])
-            rel_o = rel_o + np.dot(W_io, word_vecs[i])
+            rel_i = rel_i + np.dot(W_ii, word_vecs[i].cpu().numpy())
+            rel_g = rel_g + np.dot(W_ig, word_vecs[i].cpu().numpy())
+            rel_f = rel_f + np.dot(W_if, word_vecs[i].cpu().numpy())
+            rel_o = rel_o + np.dot(W_io, word_vecs[i].cpu().numpy())
         else:
-            irrel_i = irrel_i + np.dot(W_ii, word_vecs[i])
-            irrel_g = irrel_g + np.dot(W_ig, word_vecs[i])
-            irrel_f = irrel_f + np.dot(W_if, word_vecs[i])
-            irrel_o = irrel_o + np.dot(W_io, word_vecs[i])
+            irrel_i = irrel_i + np.dot(W_ii, word_vecs[i].cpu().numpy())
+            irrel_g = irrel_g + np.dot(W_ig, word_vecs[i].cpu().numpy())
+            irrel_f = irrel_f + np.dot(W_if, word_vecs[i].cpu().numpy())
+            irrel_o = irrel_o + np.dot(W_io, word_vecs[i].cpu().numpy())
 
         rel_contrib_i, irrel_contrib_i, bias_contrib_i = propagate_three(rel_i, irrel_i, b_i, sigmoid)
         rel_contrib_g, irrel_contrib_g, bias_contrib_g = propagate_three(rel_g, irrel_g, b_g, np.tanh)
@@ -164,7 +164,7 @@ def cd_text(batch, model, start, stop, return_irrel_scores=False):
             irrelevant[i] += (rel_contrib_f + irrel_contrib_f + bias_contrib_f) * irrelevant[i - 1] + irrel_contrib_f * \
                                                                                                       relevant[i - 1]
 
-        o = sigmoid(np.dot(W_io, word_vecs[i]) + np.dot(W_ho, prev_rel_h + prev_irrel_h) + b_o)
+        o = sigmoid(np.dot(W_io, word_vecs[i].cpu().numpy()) + np.dot(W_ho, prev_rel_h + prev_irrel_h) + b_o)
         rel_contrib_o, irrel_contrib_o, bias_contrib_o = propagate_three(rel_o, irrel_o, b_o, sigmoid)
         new_rel_h, new_irrel_h = propagate_tanh_two(relevant[i], irrelevant[i])
         # relevant_h[i] = new_rel_h * (rel_contrib_o + bias_contrib_o)
@@ -172,7 +172,7 @@ def cd_text(batch, model, start, stop, return_irrel_scores=False):
         relevant_h[i] = o * new_rel_h
         irrelevant_h[i] = o * new_irrel_h
 
-    W_out = model.hidden_to_label.weight.data
+    W_out = model.hidden_to_label.weight.data.cpu().numpy()
 
     # Sanity check: scores + irrel_scores should equal the LSTM's output minus model.hidden_to_label.bias
     scores = np.dot(W_out, relevant_h[T - 1])
